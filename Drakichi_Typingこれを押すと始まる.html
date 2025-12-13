@@ -1,0 +1,1805 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>English Typing Master</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
+  <!-- PapaParse -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <!-- Encoding.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/encoding-japanese/2.0.0/encoding.min.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700&family=Noto+Sans+JP:wght@400;700&display=swap');
+
+    body{
+      font-family:'Noto Sans JP',sans-serif;
+      background:#f1f5f9;
+      touch-action:manipulation;
+      user-select:none;
+    }
+    .font-mono{font-family:'Roboto Mono',monospace;}
+
+    @keyframes fade-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+    .anim-fade-in{animation:fade-in .25s ease-out}
+
+    @keyframes pop{0%{transform:scale(.97)}50%{transform:scale(1.05)}100%{transform:scale(1)}}
+    .anim-pop{animation:pop .12s ease-out}
+
+    /* Typing styles */
+    .char-base{
+      display:inline-block;
+      min-width:.6em;
+      text-align:center;
+      white-space:pre-wrap;
+      transition:all .08s;
+    }
+    .char-correct{color:#0369a1;font-weight:700;text-shadow:0 0 5px rgba(3,105,161,.18);}
+    .char-wrong{background:#fee2e2;color:#dc2626;border-radius:2px;}
+    .char-default{color:#64748b;}
+
+    .char-hidden{
+      color:transparent;
+      border-bottom:2px solid #cbd5e1;
+      height:1.2em;
+    }
+    .char-hidden.char-wrong{border-bottom-color:#dc2626;}
+
+    .cursor-bar{
+      display:inline-block;
+      width:2px;
+      height:1.2em;
+      background:#0369a1;
+      vertical-align:text-bottom;
+      margin:0 1px;
+      animation:blink 1s step-end infinite;
+    }
+    @keyframes blink{50%{opacity:0}}
+
+    /* Scrollbar */
+    ::-webkit-scrollbar{width:8px}
+    ::-webkit-scrollbar-track{background:#f1f5f9}
+    ::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}
+    ::-webkit-scrollbar-thumb:hover{background:#94a3b8}
+
+    /* FULL CLEAR glow */
+    @keyframes full-glow{
+      0%{box-shadow:0 0 0 rgba(255,215,0,.0)}
+      50%{box-shadow:0 0 22px rgba(255,215,0,.35)}
+      100%{box-shadow:0 0 0 rgba(255,215,0,.0)}
+    }
+    .full-clear-glow{animation:full-glow 1.6s ease-in-out infinite;}
+  </style>
+</head>
+
+<body class="min-h-screen flex flex-col items-center justify-center p-4 text-gray-800">
+
+  <div id="app-container"
+       class="bg-white w-full max-w-6xl rounded-3xl shadow-xl overflow-hidden relative border border-slate-200 flex flex-col h-[800px] transition-all duration-300">
+
+    <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-sky-500 via-blue-500 to-indigo-500"></div>
+
+    <!-- Confetti Canvas -->
+    <canvas id="confetti-canvas" class="pointer-events-none absolute inset-0 w-full h-full z-40 hidden"></canvas>
+
+    <!-- Data Controls -->
+    <div id="data-ctrl-area"
+         class="absolute top-4 right-6 z-50 flex items-center gap-2 bg-white/90 p-1.5 rounded-xl backdrop-blur-sm shadow-sm border border-gray-100">
+
+      <button onclick="goToScreen('stats')"
+              class="text-slate-500 hover:text-blue-600 px-3 py-1 text-xs font-bold transition flex items-center gap-2 border-r border-gray-200">
+        <i class="fas fa-chart-pie"></i> 成績
+      </button>
+
+
+            <!-- BGM Volume -->
+            <div class="flex items-center gap-2 px-3 py-1 text-xs font-bold text-slate-500 border-r border-gray-200">
+                <i class="fas fa-music"></i>
+                <input id="bgm-vol" type="range" min="0" max="100" value="25"
+                       class="w-24 accent-sky-600 cursor-pointer">
+                <button id="bgm-mute-btn" class="text-slate-400 hover:text-sky-600 transition" title="BGM ミュート">
+                    <i class="fas fa-volume-xmark"></i>
+                </button>
+            </div>
+
+      <label for="csv-file-input"
+             class="cursor-pointer bg-sky-50 border border-sky-200 text-sky-700 hover:bg-sky-100 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 shadow-sm">
+        <i class="fas fa-file-upload"></i> CSV Import
+      </label>
+      <input type="file" id="csv-file-input" accept=".csv" class="hidden">
+
+      <button onclick="clearAllData()"
+              class="text-gray-300 hover:text-red-400 px-2 transition text-xs" title="データ全削除">
+        <i class="fas fa-trash-alt"></i>
+      </button>
+    </div>
+
+    <!-- Back -->
+    <button id="back-btn"
+            class="absolute top-4 left-6 z-50 text-slate-500 hover:text-blue-600 transition hidden font-bold flex items-center gap-2 bg-white/80 px-4 py-2 rounded-full shadow-sm backdrop-blur-sm border border-gray-100 hover:bg-white">
+      <i class="fas fa-arrow-left"></i> <span id="back-label">Back</span>
+    </button>
+
+    <main id="main-content" class="flex-1 w-full h-full relative overflow-hidden">
+
+      <!-- 1) Grade / Title -->
+      <div id="screen-grade" class="screen w-full h-full relative anim-fade-in overflow-hidden">
+        <!-- Background image -->
+        <div class="absolute inset-0"
+             style="background-image:url('title_bg.jpg'); background-size:contain; background-position:center; background-repeat:no-repeat; background-color:#f4f7fb;"></div>
+
+        <!-- Subtle overlay (optional for readability) -->
+        <div class="absolute inset-0 bg-gradient-to-t from-black/20 via-black/0 to-black/0"></div>
+
+        <div class="relative z-10 w-full h-full flex flex-col items-center justify-end p-6">
+
+          <div id="no-data-alert"
+               class="hidden flex-col items-center justify-center bg-orange-50/95 border border-orange-200 text-orange-700 px-8 py-5 rounded-2xl mb-5 max-w-2xl text-center shadow-md backdrop-blur-sm">
+            <p class="font-bold text-lg mb-1"><i class="fas fa-exclamation-triangle mr-2"></i>データがありません</p>
+            <p class="text-sm opacity-80">右上の「CSV Import」から学習データ(CSV)を読み込んでください。</p>
+          </div>
+
+          <!-- Bottom buttons (match image style) -->
+          <div id="grade-buttons" class="w-full max-w-4xl grid grid-cols-2 md:grid-cols-4 gap-4">
+            <button onclick="selectGrade('1')"
+                    class="h-16 md:h-20 rounded-2xl bg-red-500/95 hover:bg-red-500 text-white font-extrabold text-xl md:text-2xl shadow-lg active:scale-95 transition border-2 border-white/50">
+              Grade 1
+            </button>
+            <button onclick="selectGrade('2')"
+                    class="h-16 md:h-20 rounded-2xl bg-yellow-400/95 hover:bg-yellow-400 text-white font-extrabold text-xl md:text-2xl shadow-lg active:scale-95 transition border-2 border-white/50">
+              Grade 2
+            </button>
+            <button onclick="selectGrade('3')"
+                    class="h-16 md:h-20 rounded-2xl bg-lime-500/95 hover:bg-lime-500 text-white font-extrabold text-xl md:text-2xl shadow-lg active:scale-95 transition border-2 border-white/50">
+              Grade 3
+            </button>
+            <button onclick="selectGrade('custom')"
+                    class="h-16 md:h-20 rounded-2xl bg-sky-500/95 hover:bg-sky-500 text-white font-extrabold text-xl md:text-2xl shadow-lg active:scale-95 transition border-2 border-white/50">
+              Custom
+            </button>
+          </div>
+
+          <div class="mt-3 text-center select-none">
+            <p class="text-xs text-white/90 font-mono drop-shadow">
+              Total Words Loaded: <span id="total-words-count" class="font-bold text-white text-lg">0</span>
+            </p>
+          </div>
+        </div>
+      </div>
+
+            <!-- 2) Section -->
+      <div id="screen-section"
+           class="screen w-full h-full hidden anim-fade-in relative overflow-hidden">
+
+        <!-- Background image -->
+        <div class="absolute inset-0"
+             style="background-image:url('Sectionchoice_bg.jpg'); background-size:cover; background-position:center; background-repeat:no-repeat;">
+        </div>
+
+        <!-- Subtle overlay for readability -->
+        <div class="absolute inset-0 bg-black/35"></div>
+
+        <!-- Content -->
+        <div class="relative z-10 w-full h-full flex flex-col items-center p-6">
+          <div class="w-full max-w-5xl mb-6 flex items-end justify-between border-b-2 border-white/30 pb-4 px-2">
+            <div>
+              <span class="text-xs text-white/80 font-bold uppercase block mb-1 tracking-wider">Select Section</span>
+              <h2 class="text-3xl font-bold text-white drop-shadow">
+                <i class="fas fa-folder-open mr-2 text-sky-300"></i><span id="selected-grade-label">Grade 1</span>
+              </h2>
+            </div>
+          </div>
+
+          <div id="section-list-container"
+               class="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto pb-20 px-2 h-full content-start pr-2">
+          </div>
+        </div>
+      </div>
+
+<!-- 3) Settings -->
+      <div id="screen-settings" class="screen w-full h-full relative overflow-hidden flex flex-col items-center justify-center p-8 hidden anim-fade-in">
+          <!-- Background -->
+        <div class="absolute inset-0" style="background-image:url('Backgroud3.jpg'); background-size:cover; background-position:center; background-repeat:no-repeat;"></div>
+        <div class="absolute inset-0 bg-white/35"></div>
+
+        <div class="relative z-10 bg-white p-10 rounded-[2rem] shadow-xl border border-slate-100 w-full max-w-3xl text-center relative">
+
+          <span class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 block">Target Section</span>
+          <h2 id="selected-section-label"
+              class="text-3xl font-bold text-slate-700 mb-8 border-b-4 border-sky-100 inline-block px-8 pb-2">Unit 1-1</h2>
+
+          <div class="space-y-8 text-left max-w-2xl mx-auto">
+
+            <!-- Mode -->
+            <div>
+              <label class="block text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider">
+                <i class="fas fa-gamepad mr-1"></i> Mode
+              </label>
+
+              <!-- ここ：枠に収まるように高さと文字サイズを調整 -->
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <button onclick="selectMode('normal')" id="btn-mode-normal"
+                        class="mode-btn p-4 rounded-xl border-2 border-sky-500 bg-sky-50 text-sky-700 font-bold text-center transition ring-2 ring-sky-500 ring-offset-2 hover:shadow-md">
+                  <div class="text-lg sm:text-xl mb-1 whitespace-nowrap"><i class="fas fa-eye"></i> Normal</div>
+                  <div class="text-[10px] font-normal opacity-80 whitespace-nowrap">英語・意味・音声</div>
+                </button>
+
+                <button onclick="selectMode('hard')" id="btn-mode-hard"
+                        class="mode-btn p-4 rounded-xl border-2 border-orange-400 hover:bg-orange-50 text-gray-600 hover:text-orange-600 font-bold text-center transition hover:shadow-md">
+                  <div class="text-lg sm:text-xl mb-1 whitespace-nowrap"><i class="fas fa-low-vision"></i> Hard</div>
+                  <div class="text-[10px] font-normal opacity-80 whitespace-nowrap">英語隠し・音声あり</div>
+                </button>
+
+                <button onclick="selectMode('extra')" id="btn-mode-extra"
+                        class="mode-btn p-4 rounded-xl border-2 border-rose-500 hover:bg-rose-50 text-gray-600 hover:text-rose-600 font-bold text-center transition hover:shadow-md">
+                  <div class="text-lg sm:text-xl mb-1 whitespace-nowrap"><i class="fas fa-skull"></i> Ex-Hard</div>
+                  <div class="text-[10px] font-normal opacity-80 whitespace-nowrap">意味のみ・音声なし</div>
+                </button>
+              </div>
+            </div>
+
+            <!-- Time -->
+            <div class="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+              <div class="flex justify-between items-center mb-4">
+                <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  <i class="fas fa-stopwatch mr-1"></i> Time Limit
+                </label>
+                <span id="time-val-display" class="text-3xl font-bold text-sky-600 font-mono">1 <span class="text-sm">min</span></span>
+              </div>
+              <input type="range" id="time-slider" min="1" max="10" value="1"
+                     class="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-sky-600 hover:accent-sky-500">
+              <div class="flex justify-between text-xs text-gray-400 mt-2 font-mono">
+                <span>1 min</span><span>5 min</span><span>10 min</span>
+              </div>
+            </div>
+
+            <!-- Sound -->
+            <div class="bg-white p-6 rounded-2xl border border-slate-100">
+              <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">
+                <i class="fas fa-volume-high mr-1"></i> Sound
+              </label>
+
+              <div class="flex flex-wrap items-center gap-4">
+                <label class="flex items-center gap-2 text-sm font-bold text-slate-600">
+                  <input id="sfx-toggle" type="checkbox" class="accent-sky-600" checked>
+                  効果音（タイプ/コイン/レベルUP）ON
+                </label>
+
+                <div class="text-xs text-slate-400">
+                  ※英語音声は常にON（Extraは仕様上OFF）
+                </div>
+              </div>
+            </div>
+
+            <!-- Resume note -->
+            <div id="resume-hint" class="hidden bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-xl text-sm">
+              <i class="fas fa-rotate-right mr-2"></i>
+              前回の続きがあります。STARTで続きから再開します。
+            </div>
+          </div>
+
+          <button onclick="startGame()"
+                  class="mt-10 bg-sky-600 hover:bg-sky-700 text-white font-bold py-5 px-20 rounded-full shadow-xl transform transition hover:scale-105 active:scale-95 text-xl tracking-wider flex items-center gap-3 mx-auto">
+            <i class="fas fa-play"></i> START
+          </button>
+        </div>
+      </div>
+
+      <!-- 4) Game -->
+      <div id="screen-game" class="screen w-full h-full flex flex-col items-center justify-center p-6 hidden relative cursor-text">
+        <div class="absolute top-0 left-0 w-full p-4 flex justify-between items-start z-20">
+          <div class="flex flex-col bg-white/90 backdrop-blur px-5 py-3 rounded-2xl shadow-sm border border-slate-100">
+            <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Solved</span>
+            <span id="game-score" class="text-4xl font-bold text-sky-600 font-mono leading-none">0</span>
+          </div>
+
+          <div class="flex flex-col items-center mt-2 gap-2">
+            <span id="game-mode-badge"
+                  class="px-4 py-1 bg-white border border-slate-200 text-gray-500 rounded-full text-xs font-bold shadow-sm whitespace-nowrap">
+              NORMAL
+            </span>
+            <span id="game-wpm-badge"
+                  class="px-4 py-1 bg-white border border-slate-200 text-slate-600 rounded-full text-xs font-bold shadow-sm whitespace-nowrap">
+              WPM: 0
+            </span>
+          </div>
+
+          <div class="flex flex-col items-end bg-white/90 backdrop-blur px-5 py-3 rounded-2xl shadow-sm border border-slate-100">
+            <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Time</span>
+            <span id="game-timer" class="text-4xl font-bold text-slate-700 font-mono leading-none">1:00</span>
+          </div>
+        </div>
+
+        <div class="w-full max-w-5xl text-center mt-8 px-4">
+          <div class="min-h-[5rem] flex items-center justify-center mb-8">
+            <div class="relative bg-white border-b-4 border-slate-200 px-12 py-8 rounded-3xl shadow-sm inline-block max-w-full">
+              <span id="pos-display"
+                    class="absolute -top-3 left-6 text-xs font-bold bg-sky-100 text-sky-600 px-3 py-1 rounded-full border border-sky-200 shadow-sm hidden">
+                [名]
+              </span>
+              <span id="meaning-display" class="text-2xl sm:text-4xl font-bold text-slate-700 leading-snug break-words">Ready?</span>
+            </div>
+          </div>
+
+          <div class="relative min-h-[8rem] flex items-center justify-center mb-4 px-4">
+            <button id="replay-voice-btn"
+                    class="absolute left-0 top-1/2 -translate-y-1/2 text-slate-300 hover:text-sky-500 p-4 transition bg-white rounded-full shadow-sm border border-slate-100 hover:border-sky-100 group z-10">
+              <i class="fas fa-volume-up text-2xl group-hover:scale-110 transition"></i>
+            </button>
+
+            <div id="word-display"
+                 class="font-mono text-5xl sm:text-6xl tracking-widest flex flex-wrap justify-center items-end px-12 leading-normal text-slate-800 break-words w-full">
+            </div>
+          </div>
+
+          <div id="next-hint"
+               class="h-8 text-sky-400 text-sm font-mono transition-opacity opacity-0 font-bold flex items-center justify-center gap-2">
+            <span class="text-[10px] uppercase bg-sky-50 px-2 py-0.5 rounded text-sky-300">Next</span>
+            <span id="next-word-text" class="text-slate-400 font-normal">...</span>
+          </div>
+        </div>
+
+        <input type="text" id="game-input" class="absolute inset-0 w-full h-full opacity-0 cursor-text z-10" autocomplete="off">
+
+        <div id="feedback-msg" class="absolute bottom-12 text-rose-500 font-bold h-6 text-lg animate-bounce"></div>
+      </div>
+
+      <!-- 5) Result -->
+      <div id="screen-result" class="screen w-full h-full flex flex-col items-center justify-center p-8 hidden anim-fade-in">
+        <div id="result-card"
+             class="bg-white p-12 rounded-[3rem] shadow-2xl border border-slate-100 w-full max-w-2xl text-center relative overflow-hidden">
+          <div id="result-topbar" class="absolute top-0 left-0 w-full h-3 bg-gradient-to-r from-sky-400 to-indigo-400"></div>
+
+          <h2 id="result-title" class="text-6xl font-bold text-slate-800 mb-2 mt-4">FINISH!</h2>
+          <p id="result-msg" class="text-sky-600 font-bold mb-10 text-xl">Good Job!</p>
+
+          <div class="grid grid-cols-2 gap-6 w-full mb-12">
+            <div class="bg-sky-50 p-6 rounded-3xl text-center border border-sky-100">
+              <div class="text-xs text-sky-400 uppercase font-bold mb-2 tracking-widest">Solved</div>
+              <div id="res-score" class="text-6xl font-mono font-bold text-sky-600">0</div>
+            </div>
+            <div class="bg-slate-50 p-6 rounded-3xl text-center border border-slate-200">
+              <div class="text-xs text-slate-400 uppercase font-bold mb-2 tracking-widest">WPM</div>
+              <div id="res-wpm" class="text-6xl font-mono font-bold text-slate-600">0</div>
+              <div id="res-wpm-note" class="text-xs text-slate-400 mt-2">（5文字=1語 / 実測時間）</div>
+            </div>
+          </div>
+
+          <div class="flex gap-4 justify-center">
+            <button onclick="goToScreen('settings')"
+                    class="bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-4 px-8 rounded-2xl transition flex-1 max-w-[200px]">
+              Retry
+            </button>
+            <button onclick="goToScreen('section')"
+                    class="bg-sky-600 hover:bg-sky-700 text-white font-bold py-4 px-8 rounded-2xl shadow-lg transition flex-1 max-w-[200px]">
+              Next Section
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6) Stats -->
+      <div id="screen-stats" class="screen w-full h-full flex flex-col items-center p-8 hidden anim-fade-in bg-slate-50 overflow-hidden">
+        <h2 class="text-3xl font-bold text-slate-700 mb-4 flex items-center gap-3">
+          <div class="bg-white p-2 rounded-lg shadow-sm text-sky-500"><i class="fas fa-chart-line"></i></div>
+          Learning Statistics
+        </h2>
+
+        <!-- Summary Cards -->
+        <div class="w-full max-w-6xl grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+            <div class="text-xs uppercase tracking-wider text-slate-400 font-bold">今週の平均 WPM</div>
+            <div id="sum-week-avg" class="text-3xl font-mono font-bold text-sky-600 mt-1">-</div>
+            <div class="text-xs text-slate-400 mt-1">直近7日</div>
+          </div>
+
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+            <div class="text-xs uppercase tracking-wider text-slate-400 font-bold">最高 WPM</div>
+            <div id="sum-best" class="text-3xl font-mono font-bold text-emerald-600 mt-1">-</div>
+            <div id="sum-best-note" class="text-xs text-slate-400 mt-1">—</div>
+          </div>
+
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+            <div class="text-xs uppercase tracking-wider text-slate-400 font-bold">伸び率</div>
+            <div id="sum-growth" class="text-3xl font-mono font-bold text-rose-600 mt-1">-</div>
+            <div class="text-xs text-slate-400 mt-1">直近10回 vs その前10回</div>
+          </div>
+        </div>
+
+        <!-- WPM Chart -->
+        <div class="w-full max-w-6xl bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden mb-5">
+          <div class="p-4 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center gap-3">
+            <div class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+              <i class="fas fa-chart-area text-sky-500"></i> WPM 推移（3モード同時）
+            </div>
+
+            <select id="chart-grade" class="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white">
+              <option value="">Grade</option>
+            </select>
+
+            <select id="chart-section" class="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white">
+              <option value="">Section</option>
+            </select>
+
+            <select id="chart-range" class="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white">
+              <option value="20">直近20回</option>
+              <option value="50" selected>直近50回</option>
+              <option value="100">直近100回</option>
+            </select>
+
+            <label class="text-sm text-slate-600 flex items-center gap-2 ml-auto">
+              <input id="chart-ma-toggle" type="checkbox" class="accent-sky-600" checked>
+              移動平均
+            </label>
+
+            <select id="chart-ma-window" class="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white">
+              <option value="3">MA 3</option>
+              <option value="5" selected>MA 5</option>
+              <option value="10">MA 10</option>
+            </select>
+          </div>
+
+          <div class="p-4">
+            <canvas id="wpm-chart" class="w-full" style="height:220px;"></canvas>
+            <div id="wpm-chart-note" class="text-xs text-slate-400 mt-2"></div>
+          </div>
+        </div>
+
+        <!-- Stats Table -->
+        <div class="w-full max-w-6xl bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full">
+          <div class="p-4 bg-slate-50 border-b border-slate-200 grid grid-cols-12 gap-2 text-xs font-bold text-slate-400 uppercase tracking-wider text-center">
+            <div class="col-span-1 text-left pl-4">Grade</div>
+            <div class="col-span-3 text-left">Section</div>
+            <div class="col-span-8 grid grid-cols-3 gap-2">
+              <div>Normal</div>
+              <div>Hard</div>
+              <div>Ex-Hard</div>
+            </div>
+          </div>
+
+          <div id="stats-list-container" class="overflow-y-auto flex-1 p-0 bg-white"></div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+<script>
+/* =========================================================
+   Storage Keys
+========================================================= */
+const STORAGE_KEY_DATA     = 'typing_game_final_data';
+const STORAGE_KEY_STATS    = 'typing_game_final_stats';
+const STORAGE_KEY_HISTORY  = 'typing_game_final_history';
+const STORAGE_KEY_PROGRESS = 'typing_game_final_progress'; // map object
+
+/* =========================================================
+   Data
+========================================================= */
+let allWords = [];
+let gradeMap = {};   // grade -> Set(sections)
+let statsData = {};  // key: grade_section -> { normal:{score,wpm}, hard..., extra..., date }
+let historyData = []; // [{ts, grade, section, mode, wpm, score}]
+let progressData = {}; // key: grade_section_mode -> {order:[idx...], idx, correctChars}
+
+/* =========================================================
+   App State
+========================================================= */
+let currentSettings = {
+  grade: null,
+  section: null,
+  mode: 'normal',
+  timeLimitMin: 1,
+  sfxOn: true
+};
+
+const screens = ['grade','section','settings','game','result','stats'];
+const backBtn = document.getElementById('back-btn');
+const backLabel = document.getElementById('back-label');
+const ctrlArea = document.getElementById('data-ctrl-area');
+
+/* =========================================================
+   Utility
+========================================================= */
+function keyFor(grade, section){ return `${grade}_${section}`; }
+function keyForMode(grade, section, mode){ return `${grade}_${section}_${mode}`; }
+
+function rebuildGradeMap(){
+  gradeMap = {};
+  allWords.forEach(item=>{
+    const g = item.grade;
+    if(!g) return;
+    if(!gradeMap[g]) gradeMap[g] = new Set();
+    let cleanSection = item.section || "Other";
+    cleanSection = cleanSection.replace(/^\d+年\s*/, '').trim();
+    gradeMap[g].add(cleanSection);
+  });
+}
+
+function loadAll(){
+  // Data
+  const storedData = localStorage.getItem(STORAGE_KEY_DATA);
+  if(storedData){
+    try{
+      allWords = JSON.parse(storedData);
+      document.getElementById('total-words-count').textContent = allWords.length;
+      rebuildGradeMap();
+      document.getElementById('no-data-alert').classList.add('hidden');
+      document.getElementById('grade-buttons').classList.remove('opacity-50','pointer-events-none');
+    }catch(e){ console.error(e); }
+  }else{
+    document.getElementById('no-data-alert').classList.remove('hidden');
+    document.getElementById('grade-buttons').classList.add('opacity-50','pointer-events-none');
+  }
+
+  // Stats
+  const storedStats = localStorage.getItem(STORAGE_KEY_STATS);
+  if(storedStats){
+    try{ statsData = JSON.parse(storedStats) || {}; }catch(e){ statsData = {}; }
+  }
+
+  // History
+  try{
+    const h = localStorage.getItem(STORAGE_KEY_HISTORY);
+    historyData = h ? JSON.parse(h) : [];
+  }catch{ historyData = []; }
+
+  // Progress
+  try{
+    const p = localStorage.getItem(STORAGE_KEY_PROGRESS);
+    progressData = p ? JSON.parse(p) : {};
+  }catch{ progressData = {}; }
+}
+
+function saveAll(){
+  localStorage.setItem(STORAGE_KEY_STATS, JSON.stringify(statsData));
+  localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(historyData));
+  localStorage.setItem(STORAGE_KEY_PROGRESS, JSON.stringify(progressData));
+}
+
+/* =========================================================
+   CSV Import
+========================================================= */
+const fileInput = document.getElementById('csv-file-input');
+fileInput.addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+
+  const reader = new FileReader();
+  reader.readAsArrayBuffer(file);
+
+  reader.onload = (event)=>{
+    const buffer = new Uint8Array(event.target.result);
+    const detected = Encoding.detect(buffer);
+    const unicodeString = Encoding.convert(buffer, {to:'UNICODE', from:detected});
+    const text = Encoding.codeToString(unicodeString);
+
+    Papa.parse(text, {
+      header:false,
+      skipEmptyLines:true,
+      complete:(results)=>{
+        const raw = results.data;
+        const processed = [];
+        const IDX_GRADE=1, IDX_SECTION=3, IDX_EN=4, IDX_POS=5, IDX_JA=6;
+
+        raw.forEach((row,index)=>{
+          if(index===0 && (String(row[IDX_GRADE]).includes('学年'))) return;
+          if(row.length < 7) return;
+
+          let g = String(row[IDX_GRADE]).replace('年','').trim();
+          const s = String(row[IDX_SECTION]).trim();
+          const en = String(row[IDX_EN]).trim();
+          const pos = String(row[IDX_POS]).trim();
+          const ja = String(row[IDX_JA]).trim();
+
+          if(g==='カスタム' || g==='Custom' || g==='custom') g='custom';
+          if(g && s && en && ja){
+            processed.push({grade:g, section:s, en, ja, pos});
+          }
+        });
+
+        if(processed.length>0){
+          allWords = processed;
+          localStorage.setItem(STORAGE_KEY_DATA, JSON.stringify(allWords));
+          rebuildGradeMap();
+          // リセット
+          localStorage.removeItem(STORAGE_KEY_STATS);
+          localStorage.removeItem(STORAGE_KEY_HISTORY);
+          localStorage.removeItem(STORAGE_KEY_PROGRESS);
+          alert(`読み込み成功！\n${allWords.length}件を保存しました。`);
+          location.reload();
+        }else{
+          alert("有効なデータが見つかりませんでした。");
+        }
+      }
+    });
+  };
+
+  fileInput.value='';
+});
+
+function clearAllData(){
+  if(confirm("全データを削除しますか？\n（学習データ・成績・履歴・途中経過が全部消えます）")){
+    localStorage.removeItem(STORAGE_KEY_DATA);
+    localStorage.removeItem(STORAGE_KEY_STATS);
+    localStorage.removeItem(STORAGE_KEY_HISTORY);
+    localStorage.removeItem(STORAGE_KEY_PROGRESS);
+    location.reload();
+  }
+}
+
+/* =========================================================
+   Navigation
+========================================================= */
+function stopConfetti(){
+  const canvas = document.getElementById('confetti-canvas');
+  if(canvas) canvas.classList.add('hidden');
+}
+
+function goToScreen(screenName){
+  stopConfetti();
+
+  screens.forEach(s=>document.getElementById(`screen-${s}`).classList.add('hidden'));
+  const target = document.getElementById(`screen-${screenName}`);
+  target.classList.remove('hidden');
+  target.classList.remove('anim-fade-in');
+  void target.offsetWidth;
+  target.classList.add('anim-fade-in');
+
+
+  // BGM control (only Grade & Section screens)
+  if(screenName==='grade') playBgm('title');
+  else if(screenName==='section') playBgm('section');
+  else stopBgm();
+
+  if(screenName==='grade'){
+    backBtn.classList.add('hidden');
+    ctrlArea.classList.remove('hidden');
+  }else if(screenName==='section'){
+    backBtn.classList.remove('hidden');
+    backLabel.textContent="Grades";
+    backBtn.onclick=()=>goToScreen('grade');
+    ctrlArea.classList.remove('hidden');
+    if(currentSettings.grade) renderSectionList(currentSettings.grade);
+  }else if(screenName==='settings'){
+    backBtn.classList.remove('hidden');
+    backLabel.textContent="Sections";
+    backBtn.onclick=()=>goToScreen('section');
+    ctrlArea.classList.add('hidden');
+    updateResumeHint();
+  }else if(screenName==='game'){
+    backBtn.classList.remove('hidden');
+    backLabel.textContent="Quit";
+    backBtn.onclick=()=>{ if(confirm("ゲームを終了しますか？（途中経過は保存されます）")) goToScreen('settings'); };
+    ctrlArea.classList.add('hidden');
+  }else if(screenName==='result'){
+    backBtn.classList.add('hidden');
+    ctrlArea.classList.add('hidden');
+  }else if(screenName==='stats'){
+    renderStatsList();
+    setupChartSelectors();
+    backBtn.classList.remove('hidden');
+    backLabel.textContent="Home";
+    backBtn.onclick=()=>goToScreen('grade');
+    ctrlArea.classList.add('hidden');
+  }
+}
+
+window.selectGrade = function(g){
+  if(allWords.length===0) return;
+  currentSettings.grade = g;
+  renderSectionList(g);
+  goToScreen('section');
+};
+
+window.selectSection = function(sec){
+  currentSettings.section = sec;
+  document.getElementById('selected-section-label').textContent = sec;
+  goToScreen('settings');
+};
+
+function renderSectionList(grade){
+  const container = document.getElementById('section-list-container');
+  container.innerHTML='';
+
+  const gradeLabel = (grade==='custom') ? 'Custom' : `Grade ${grade}`;
+  document.getElementById('selected-grade-label').textContent = gradeLabel;
+
+  if(!gradeMap[grade]){
+    container.innerHTML = '<p class="text-gray-400 col-span-full text-center py-10">データがありません</p>';
+    return;
+  }
+
+  const sections = Array.from(gradeMap[grade]).sort((a,b)=>a.localeCompare(b,undefined,{numeric:true,sensitivity:'base'}));
+
+  sections.forEach(sec=>{
+    const targets = allWords.filter(w=>w.grade===grade && w.section.includes(sec));
+    const total = targets.length;
+
+    const key = keyFor(grade, sec);
+    const stat = statsData[key] || {normal:{score:0,wpm:0},hard:{score:0,wpm:0},extra:{score:0,wpm:0}};
+
+    const isFullClear = total>0 &&
+      stat.normal.score>=total &&
+      stat.hard.score>=total &&
+      stat.extra.score>=total;
+
+    const getLine = (label, s, totalCount)=>{
+      const cleared = (s.score>=totalCount && totalCount>0);
+      const crown = cleared ? '<i class="fas fa-crown text-yellow-500 ml-1"></i>' : '';
+      const wpm = (s.wpm>0) ? `<span class="ml-2 text-[10px] opacity-75 font-mono">${s.wpm}wpm</span>` : '';
+      const color = cleared ? 'text-sky-600 font-extrabold' : 'text-slate-500';
+      return `
+        <div class="grid grid-cols-[3.5rem_1fr] items-center gap-2 text-[11px] leading-5">
+          <span class="font-extrabold text-slate-400">${label}</span>
+          <div class="${color} text-right overflow-hidden text-ellipsis whitespace-nowrap">
+            ${s.score}/${totalCount}${crown}${wpm}
+          </div>
+        </div>
+      `;
+    };
+
+    const card = document.createElement('div');
+    card.className = `
+      relative bg-white border-2 rounded-2xl shadow-sm transition-all cursor-pointer group
+      min-h-[170px]
+      ${isFullClear ? 'border-yellow-300 full-clear-glow' : 'border-slate-200 hover:border-sky-400 hover:shadow-md'}
+    `;
+    card.onclick = ()=>selectSection(sec);
+
+    card.innerHTML = `
+      <div class="p-4 flex flex-col h-full justify-between">
+        <div class="flex items-start justify-between gap-2">
+          <span class="text-lg font-bold text-slate-700 group-hover:text-sky-600 transition block truncate">${sec}</span>
+          ${isFullClear ? '<span class="text-[10px] font-bold bg-yellow-100 text-yellow-700 border border-yellow-200 px-2 py-1 rounded-full whitespace-nowrap">FULL CLEAR</span>' : ''}
+        </div>
+        <div class="mt-3 space-y-1 bg-slate-50 p-2 rounded-lg">
+          ${getLine('Norm', stat.normal, total)}
+          ${getLine('Hard', stat.hard, total)}
+          ${getLine('Extra', stat.extra, total)}
+        </div>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+/* =========================================================
+   Settings
+========================================================= */
+window.selectMode = function(m){
+  currentSettings.mode = m;
+  document.querySelectorAll('.mode-btn').forEach(btn=>{
+    btn.className = "mode-btn p-4 rounded-xl border-2 border-slate-200 text-slate-500 font-bold text-center transition hover:shadow-md bg-white";
+  });
+  const active = document.getElementById(`btn-mode-${m}`);
+  const colors = {normal:'sky', hard:'orange', extra:'rose'};
+  const c = colors[m];
+  active.className = `mode-btn p-4 rounded-xl border-2 border-${c}-500 bg-${c}-50 text-${c}-700 font-bold text-center transition ring-2 ring-${c}-500 ring-offset-2 hover:shadow-md transform scale-[1.03]`;
+  updateResumeHint();
+};
+
+document.getElementById('time-slider').addEventListener('input',(e)=>{
+  currentSettings.timeLimitMin = parseInt(e.target.value,10);
+  document.getElementById('time-val-display').innerHTML = `${currentSettings.timeLimitMin} <span class="text-sm">min</span>`;
+});
+
+document.getElementById('sfx-toggle').addEventListener('change',(e)=>{
+  currentSettings.sfxOn = !!e.target.checked;
+});
+
+function updateResumeHint(){
+  const hint = document.getElementById('resume-hint');
+  const k = keyForMode(currentSettings.grade, currentSettings.section, currentSettings.mode);
+  const has = !!progressData[k];
+  hint.classList.toggle('hidden', !has);
+}
+
+
+/* ==============================
+   BGM (Title / Section) - HTMLAudio
+   - Plays only on Grade & Section screens
+   - Stops when game starts (and on other screens)
+   - Volume adjustable + mute (saved)
+============================== */
+const STORAGE_KEY_BGM_VOL  = 'typing_game_full_bgm_vol';
+const STORAGE_KEY_BGM_MUTE = 'typing_game_full_bgm_mute';
+
+let bgm = { title:null, section:null };
+let bgmVol = 0.25;
+let bgmMuted = false;
+let currentBgmName = null;
+let bgmUnlocked = false;
+
+function initBgm(){
+  // Create audio elements (same folder as this HTML)
+  bgm.title = new Audio(encodeURI('タイトル画面.mp3'));
+  bgm.section = new Audio(encodeURI('セクション選択画面.mp3'));
+  bgm.title.loop = true;
+  bgm.section.loop = true;
+
+  // Restore saved settings
+  const savedVol = parseFloat(localStorage.getItem(STORAGE_KEY_BGM_VOL));
+  if(!Number.isNaN(savedVol)) bgmVol = Math.min(1, Math.max(0, savedVol));
+  bgmMuted = localStorage.getItem(STORAGE_KEY_BGM_MUTE) === '1';
+
+  // Apply
+  applyBgmVolume();
+
+  // UI
+  const slider = document.getElementById('bgm-vol');
+  const muteBtn = document.getElementById('bgm-mute-btn');
+
+  if(slider){
+    slider.value = String(Math.round(bgmVol*100));
+    slider.addEventListener('input', ()=>{
+      bgmVol = Math.min(1, Math.max(0, parseInt(slider.value,10)/100));
+      bgmMuted = (bgmVol === 0);
+      localStorage.setItem(STORAGE_KEY_BGM_VOL, String(bgmVol));
+      localStorage.setItem(STORAGE_KEY_BGM_MUTE, bgmMuted ? '1' : '0');
+      applyBgmVolume();
+      updateBgmMuteIcon();
+    });
+  }
+
+  if(muteBtn){
+    muteBtn.addEventListener('click', ()=>{
+      bgmMuted = !bgmMuted;
+      localStorage.setItem(STORAGE_KEY_BGM_MUTE, bgmMuted ? '1' : '0');
+      applyBgmVolume();
+      updateBgmMuteIcon();
+    });
+  }
+
+  updateBgmMuteIcon();
+
+  // Autoplay policy: unlock on first user gesture
+  const unlock = () => {
+    if(bgmUnlocked) return;
+    bgmUnlocked = true;
+
+    // Unmute + apply volume
+    if(bgm.title) bgm.title.muted = false;
+    if(bgm.section) bgm.section.muted = false;
+    applyBgmVolume();
+
+    // Play current screen BGM (restart if it was muted autoplay)
+    if(currentBgmName) playBgm(currentBgmName);
+
+    window.removeEventListener('pointerdown', unlock);
+    window.removeEventListener('keydown', unlock);
+    window.removeEventListener('touchstart', unlock);
+  };
+  window.addEventListener('pointerdown', unlock, { once:false });
+  window.addEventListener('keydown', unlock, { once:false });
+  window.addEventListener('touchstart', unlock, { once:false });
+}
+
+function applyBgmVolume(){
+  const vol = bgmMuted ? 0 : bgmVol;
+  if(bgm.title) bgm.title.volume = vol;
+  if(bgm.section) bgm.section.volume = vol;
+}
+
+function updateBgmMuteIcon(){
+  const muteBtn = document.getElementById('bgm-mute-btn');
+  if(!muteBtn) return;
+  muteBtn.innerHTML = bgmMuted ? '<i class="fas fa-volume-xmark"></i>' : '<i class="fas fa-volume-high"></i>';
+}
+
+function stopBgm(){
+  if(bgm.title){ bgm.title.pause(); }
+  if(bgm.section){ bgm.section.pause(); }
+  currentBgmName = null;
+}
+
+function playBgm(name){
+  currentBgmName = name;
+
+  const a = (name==='title') ? bgm.title : (name==='section' ? bgm.section : null);
+  if(!a) return;
+
+  // stop others
+  if(bgm.title && bgm.title !== a) bgm.title.pause();
+  if(bgm.section && bgm.section !== a) bgm.section.pause();
+
+  // First try: play with sound (works if browser allows autoplay or site was previously interacted with)
+  a.muted = false;
+  applyBgmVolume();
+
+  const tryPlayWithSound = () => a.play().then(()=>{
+    bgmUnlocked = true; // autoplay allowed
+  });
+
+  const tryPlayMuted = () => {
+    a.muted = true;
+    return a.play().catch(()=>{});
+  };
+
+  tryPlayWithSound().catch(()=>tryPlayMuted());
+}
+
+
+/* =========================================================
+   Audio: SFX (toggle) & Speech (always, except extra)
+========================================================= */
+let audioCtx = null;
+
+// --- Typing MP3 SFX ---
+// Put the mp3 in the same folder as this HTML, or change this path.
+const TYPE_SFX_URL = encodeURI('typing 音.mp3');
+const TYPE_SFX_POOL_SIZE = 6;
+let typeSfxPool = [];
+let typeSfxIdx = 0;
+
+function initTypeSfxPool(){
+  if(typeSfxPool.length) return;
+  for(let i=0;i<TYPE_SFX_POOL_SIZE;i++){
+    const a = new Audio(TYPE_SFX_URL);
+    a.preload = 'auto';
+    a.volume = 0.35; // adjust if needed
+    typeSfxPool.push(a);
+  }
+}
+function playTypeMp3(){
+  initTypeSfxPool();
+  if(!typeSfxPool.length) return;
+  const a = typeSfxPool[typeSfxIdx];
+  typeSfxIdx = (typeSfxIdx + 1) % typeSfxPool.length;
+  try{
+    a.pause();
+    a.currentTime = 0;
+    a.play();
+  }catch(e){
+    // ignore autoplay restrictions / decode issues
+  }
+}
+
+function ensureAudioCtx(){
+  if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if(audioCtx.state === 'suspended') audioCtx.resume();
+}
+
+function beep(freq, dur=0.04, type='square', gain=0.04){
+  if(!currentSettings.sfxOn) return;
+  ensureAudioCtx();
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = type;
+  o.frequency.value = freq;
+  g.gain.value = gain;
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start();
+  o.stop(audioCtx.currentTime + dur);
+}
+
+function sfxType(){
+  if(!currentSettings.sfxOn) return;
+  // Prefer MP3 typing sound. Fallback to short beep if the file is missing.
+  try{
+    playTypeMp3();
+  }catch(e){
+    ensureAudio();
+    tone(1800,0.02,'square',0.04);
+  }
+}
+
+function sfxCoin(){
+  if(!currentSettings.sfxOn) return;
+
+  if(!currentSettings.sfxOn) return;
+
+  // “マリオっぽい”二段
+  beep(1318, 0.04, 'triangle', 0.06);
+  setTimeout(()=>beep(1760, 0.05, 'triangle', 0.06), 60);
+}
+
+function sfxLevelUp(){
+  if(!currentSettings.sfxOn) return;
+
+  // ドラクエ風（それっぽい短いフレーズ）
+  const seq = [523,659,784,988,1175,1318];
+  seq.forEach((f,i)=>setTimeout(()=>beep(f, 0.12, 'triangle', 0.05), i*120));
+}
+
+function sfxFullClear(){
+  // 豪華版
+  const seq = [523,659,784,988,1175,1318,1568];
+  seq.forEach((f,i)=>setTimeout(()=>beep(f, 0.14, 'triangle', 0.055), i*130));
+}
+
+/* Speech */
+let voices = [];
+window.speechSynthesis.onvoiceschanged = ()=>{ voices = window.speechSynthesis.getVoices(); };
+
+function speak(text){
+  if(currentSettings.mode === 'extra') return; // 仕様
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  const preferred =
+    voices.find(v=>v.name.includes("Google US")) ||
+    voices.find(v=>v.lang === 'en-US') ||
+    voices[0];
+  if(preferred) u.voice = preferred;
+  u.lang = 'en-US';
+  window.speechSynthesis.speak(u);
+}
+
+/* =========================================================
+   Confetti (Canvas)
+========================================================= */
+let confettiRunning = false;
+
+function fireConfetti({durationMs=1600, count=120, burst=2}={}){
+  const canvas = document.getElementById('confetti-canvas');
+  if(!canvas) return;
+
+  const rect = document.getElementById('app-container').getBoundingClientRect();
+  canvas.width = Math.floor(rect.width * devicePixelRatio);
+  canvas.height = Math.floor(rect.height * devicePixelRatio);
+  canvas.style.width = rect.width + "px";
+  canvas.style.height = rect.height + "px";
+
+  const ctx = canvas.getContext('2d');
+  canvas.classList.remove('hidden');
+  confettiRunning = true;
+
+  const W = canvas.width, H = canvas.height;
+  const particles = [];
+  const rand = (a,b)=>a + Math.random()*(b-a);
+
+  function spawn(n, power=1){
+    for(let i=0;i<n;i++){
+      const size = rand(6,12) * devicePixelRatio;
+      particles.push({
+        x: rand(W*0.2, W*0.8),
+        y: rand(-H*0.05, H*0.05),
+        w: size,
+        h: size * rand(0.6, 1.2),
+        vx: rand(-2.8,2.8)*devicePixelRatio*power,
+        vy: rand(2.5,6.5)*devicePixelRatio*power,
+        rot: rand(0,Math.PI*2),
+        vr: rand(-0.25,0.25)*power,
+        color: `hsl(${Math.floor(rand(0,360))} 90% 60%)`,
+        life: rand(durationMs*0.6, durationMs)
+      });
+    }
+  }
+
+  spawn(Math.floor(count/burst), 1.0);
+
+  let last = performance.now();
+  const start = last;
+
+  function tick(now){
+    if(!confettiRunning) return;
+    const dt = Math.min(32, now-last);
+    last = now;
+
+    const t = now-start;
+    if(burst>=2 && t>180 && t<220) spawn(Math.floor(count/burst), 1.1);
+    if(burst>=3 && t>360 && t<400) spawn(Math.floor(count/burst), 1.2);
+
+    ctx.clearRect(0,0,W,H);
+
+    for(let i=particles.length-1;i>=0;i--){
+      const p = particles[i];
+      p.life -= dt;
+      if(p.life<=0 || p.y>H+p.h*2){
+        particles.splice(i,1);
+        continue;
+      }
+      p.vy += 0.08 * devicePixelRatio;
+      p.vx *= 0.995;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.rot += p.vr;
+
+      ctx.save();
+      ctx.translate(p.x,p.y);
+      ctx.rotate(p.rot);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+      ctx.restore();
+    }
+
+    if(now-start < durationMs || particles.length>0){
+      requestAnimationFrame(tick);
+    }else{
+      canvas.classList.add('hidden');
+      confettiRunning = false;
+    }
+  }
+
+  requestAnimationFrame(tick);
+}
+
+/* =========================================================
+   Stats + History
+========================================================= */
+function saveStats(grade, section, mode, score, wpm){
+  const key = keyFor(grade, section);
+  const now = new Date().toLocaleDateString();
+
+  if(!statsData[key]){
+    statsData[key] = {
+      normal:{score:0,wpm:0},
+      hard:{score:0,wpm:0},
+      extra:{score:0,wpm:0},
+      date:""
+    };
+  }
+
+  const cur = statsData[key][mode];
+  if(score > cur.score) cur.score = score;
+  if(wpm   > cur.wpm)   cur.wpm   = wpm;
+  statsData[key].date = now;
+
+  saveAll();
+}
+
+function addHistory(grade, section, mode, score, wpm){
+  historyData.push({ts:Date.now(), grade, section, mode, wpm, score});
+  if(historyData.length > 3000) historyData = historyData.slice(-3000);
+  saveAll();
+}
+
+/* Summary */
+function summarizeWpm(grade, section){
+  const now = Date.now();
+  const weekMs = 7*24*60*60*1000;
+
+  const rows = historyData
+    .filter(r=>r.grade===grade && r.section===section)
+    .sort((a,b)=>a.ts-b.ts);
+
+  const week = rows.filter(r=>now-r.ts<=weekMs);
+  const weekAvg = week.length ? Math.round(week.reduce((a,b)=>a+b.wpm,0)/week.length) : null;
+
+  let best = null;
+  rows.forEach(r=>{ if(!best || r.wpm>best.wpm) best=r; });
+
+  const last10 = rows.slice(-10);
+  const prev10 = rows.slice(-20,-10);
+  const avg = arr => arr.length ? (arr.reduce((a,b)=>a+b.wpm,0)/arr.length) : null;
+  const lastAvg = avg(last10);
+  const prevAvg = avg(prev10);
+  const growth = (lastAvg!=null && prevAvg!=null) ? Math.round(((lastAvg-prevAvg)/Math.max(1,prevAvg))*100) : null;
+
+  return {weekAvg, best, growth};
+}
+
+function renderWpmSummary(grade, section){
+  const elWeek = document.getElementById('sum-week-avg');
+  const elBest = document.getElementById('sum-best');
+  const elBestNote = document.getElementById('sum-best-note');
+  const elGrowth = document.getElementById('sum-growth');
+
+  if(!grade || !section){
+    elWeek.textContent = elBest.textContent = elGrowth.textContent = "-";
+    elBestNote.textContent = "—";
+    return;
+  }
+
+  const {weekAvg, best, growth} = summarizeWpm(grade, section);
+  elWeek.textContent = (weekAvg!=null) ? `${weekAvg}` : "-";
+
+  if(best){
+    elBest.textContent = `${best.wpm}`;
+    elBestNote.textContent = `${best.mode.toUpperCase()} / ${new Date(best.ts).toLocaleDateString()}`;
+  }else{
+    elBest.textContent = "-";
+    elBestNote.textContent = "—";
+  }
+
+  if(growth!=null){
+    elGrowth.textContent = `${growth>0?'+':''}${growth}%`;
+    elGrowth.className = `text-3xl font-mono font-bold mt-1 ${growth>=0 ? 'text-emerald-600' : 'text-rose-600'}`;
+  }else{
+    elGrowth.textContent = "-";
+    elGrowth.className = 'text-3xl font-mono font-bold text-rose-600 mt-1';
+  }
+}
+
+/* Chart helpers */
+function movingAverage(arr, win){
+  if(!arr || arr.length===0) return [];
+  const w = Math.max(1, win|0);
+  const out = [];
+  for(let i=0;i<arr.length;i++){
+    const start = Math.max(0, i-w+1);
+    const slice = arr.slice(start, i+1);
+    const avg = slice.reduce((a,b)=>a+b,0)/slice.length;
+    out.push(avg);
+  }
+  return out;
+}
+
+function renderWpmChartAllModes(grade, section, limit=50, showMA=true, maWin=5){
+  const canvas = document.getElementById('wpm-chart');
+  const note = document.getElementById('wpm-chart-note');
+  if(!canvas) return;
+
+  const cssW = canvas.clientWidth;
+  const cssH = 220;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.floor(cssW*dpr);
+  canvas.height = Math.floor(cssH*dpr);
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,cssW,cssH);
+
+  if(!grade || !section){
+    ctx.font = "14px sans-serif";
+    ctx.fillStyle = "#94a3b8";
+    ctx.fillText("Grade / Section を選択してね", 12, 28);
+    if(note) note.textContent = "";
+    return;
+  }
+
+  const modes = ["normal","hard","extra"];
+  const labels = {normal:"Normal", hard:"Hard", extra:"Ex-Hard"};
+  const colors = {normal:"#0ea5e9", hard:"#f97316", extra:"#ec4899"};
+
+  const series = {};
+  const allVals = [];
+
+  modes.forEach(m=>{
+    const data = historyData
+      .filter(r=>r.grade===grade && r.section===section && r.mode===m)
+      .sort((a,b)=>a.ts-b.ts)
+      .slice(-limit);
+
+    const vals = data.map(d=>d.wpm);
+    const ma = showMA ? movingAverage(vals, maWin) : [];
+    series[m] = {data, vals, ma};
+    allVals.push(...vals);
+    if(showMA) allVals.push(...ma);
+  });
+
+  if(allVals.length===0){
+    ctx.font = "14px sans-serif";
+    ctx.fillStyle = "#94a3b8";
+    ctx.fillText("このSectionのWPM履歴がまだありません", 12, 28);
+    if(note) note.textContent = "";
+    return;
+  }
+
+  const min = Math.min(...allVals);
+  const max = Math.max(...allVals);
+
+  const top=18, left=44, right=18, bottom=28;
+  const x0=left, x1=cssW-right;
+  const y0=top, y1=cssH-bottom;
+
+  const yMin = Math.max(0, Math.floor(min-5));
+  const yMax = Math.max(yMin+10, Math.ceil(max+5));
+  const yScale = (y1-y0)/(yMax-yMin);
+
+  // axes
+  ctx.strokeStyle="#e2e8f0"; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x0,y1); ctx.lineTo(x1,y1); ctx.stroke();
+
+  // ticks
+  ctx.fillStyle="#94a3b8"; ctx.font="11px sans-serif";
+  const ticks = [yMin, Math.round((yMin+yMax)/2), yMax];
+  ticks.forEach(t=>{
+    const y = y1 - (t-yMin)*yScale;
+    ctx.strokeStyle="#f1f5f9";
+    ctx.beginPath(); ctx.moveTo(x0,y); ctx.lineTo(x1,y); ctx.stroke();
+    ctx.fillText(String(t), 8, y+4);
+  });
+
+  // legend
+  let lx=x0, ly=12;
+  ctx.font="12px sans-serif";
+  modes.forEach(m=>{
+    ctx.fillStyle = colors[m];
+    ctx.fillRect(lx,ly,10,10);
+    ctx.fillStyle="#475569";
+    ctx.fillText(labels[m], lx+14, ly+10);
+    lx += 92;
+  });
+  if(showMA){
+    ctx.strokeStyle="#64748b";
+    ctx.setLineDash([5,4]);
+    ctx.beginPath(); ctx.moveTo(x0+280, ly+5); ctx.lineTo(x0+320, ly+5); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle="#475569";
+    ctx.fillText(`MA(${maWin})`, x0+326, ly+10);
+  }
+
+  function drawLine(vals, color, width=2){
+    if(!vals || vals.length===0) return;
+    const n = vals.length;
+    const xStep = (n<=1)?0:(x1-x0)/(n-1);
+    ctx.strokeStyle=color; ctx.lineWidth=width;
+    ctx.beginPath();
+    for(let i=0;i<n;i++){
+      const x=x0+i*xStep;
+      const y=y1-(vals[i]-yMin)*yScale;
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+
+    ctx.fillStyle=color;
+    for(let i=0;i<n;i++){
+      const x=x0+i*xStep;
+      const y=y1-(vals[i]-yMin)*yScale;
+      ctx.beginPath(); ctx.arc(x,y,3,0,Math.PI*2); ctx.fill();
+    }
+  }
+
+  function drawMA(vals, color){
+    if(!showMA || !vals || vals.length===0) return;
+    const n = vals.length;
+    const xStep = (n<=1)?0:(x1-x0)/(n-1);
+    ctx.strokeStyle=color; ctx.lineWidth=2;
+    ctx.setLineDash([6,4]);
+    ctx.beginPath();
+    for(let i=0;i<n;i++){
+      const x=x0+i*xStep;
+      const y=y1-(vals[i]-yMin)*yScale;
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  modes.forEach(m=>{
+    drawLine(series[m].vals, colors[m], 2);
+    drawMA(series[m].ma, colors[m]);
+  });
+
+  const lastStr = (m)=>{
+    const d = series[m].data;
+    if(!d || d.length===0) return `${labels[m]}: -`;
+    return `${labels[m]}: ${d[d.length-1].wpm}wpm`;
+  };
+  if(note) note.textContent = `直近表示: 最大${limit}回｜${lastStr("normal")} / ${lastStr("hard")} / ${lastStr("extra")}`;
+
+  renderWpmSummary(grade, section);
+}
+
+function setupChartSelectors(){
+  const gradeSel = document.getElementById('chart-grade');
+  const secSel   = document.getElementById('chart-section');
+  const rangeSel = document.getElementById('chart-range');
+  const maToggle = document.getElementById('chart-ma-toggle');
+  const maWindow = document.getElementById('chart-ma-window');
+  if(!gradeSel || !secSel || !rangeSel || !maToggle || !maWindow) return;
+
+  gradeSel.innerHTML = '<option value="">Grade</option>';
+  Object.keys(gradeMap).sort((a,b)=>{
+    if(a==='custom') return 1;
+    if(b==='custom') return -1;
+    return a-b;
+  }).forEach(g=>{
+    const opt = document.createElement('option');
+    opt.value = g;
+    opt.textContent = (g==='custom') ? 'Custom' : `Grade ${g}`;
+    gradeSel.appendChild(opt);
+  });
+
+  gradeSel.value = currentSettings.grade || Object.keys(gradeMap)[0] || "";
+
+  const rebuildSections = ()=>{
+    const g = gradeSel.value;
+    secSel.innerHTML = '<option value="">Section</option>';
+    if(!g || !gradeMap[g]) return;
+    Array.from(gradeMap[g]).sort((a,b)=>a.localeCompare(b,undefined,{numeric:true})).forEach(s=>{
+      const opt = document.createElement('option');
+      opt.value = s;
+      opt.textContent = s;
+      secSel.appendChild(opt);
+    });
+
+    if(currentSettings.section && g===currentSettings.grade) secSel.value = currentSettings.section;
+    else secSel.value = secSel.options[1]?.value || "";
+  };
+
+  const redraw = ()=>{
+    renderWpmChartAllModes(
+      gradeSel.value,
+      secSel.value,
+      parseInt(rangeSel.value,10),
+      maToggle.checked,
+      parseInt(maWindow.value,10)
+    );
+  };
+
+  rebuildSections();
+  gradeSel.onchange=()=>{ rebuildSections(); redraw(); };
+  secSel.onchange=redraw;
+  rangeSel.onchange=redraw;
+  maToggle.onchange=redraw;
+  maWindow.onchange=redraw;
+
+  redraw();
+}
+
+/* =========================================================
+   Stats list render
+========================================================= */
+function renderStatsList(){
+  const container = document.getElementById('stats-list-container');
+  container.innerHTML='';
+
+  const list = [];
+  const sortedGrades = Object.keys(gradeMap).sort((a,b)=>{
+    if(a==='custom') return 1;
+    if(b==='custom') return -1;
+    return a-b;
+  });
+
+  sortedGrades.forEach(g=>{
+    const secs = Array.from(gradeMap[g]).sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+    secs.forEach(s=>{
+      const key = keyFor(g,s);
+      const stat = statsData[key];
+      const count = allWords.filter(w=>w.grade===g && w.section.includes(s)).length;
+      if(stat) list.push({grade:g, section:s, count, ...stat});
+    });
+  });
+
+  if(list.length===0){
+    container.innerHTML='<div class="p-8 text-center text-gray-400">プレイ履歴がありません</div>';
+    return;
+  }
+
+  list.forEach((item,idx)=>{
+    const row = document.createElement('div');
+    row.className = `grid grid-cols-12 gap-2 p-3 text-sm border-b border-slate-100 hover:bg-slate-50 transition ${idx%2===0?'bg-white':'bg-slate-50/50'}`;
+
+    const gradeDisplay = item.grade==='custom' ? '<span class="text-rose-500"><i class="fas fa-star"></i></span>' : `G${item.grade}`;
+    const fmt = (s)=>{
+      if(s.score===0) return '<span class="text-gray-300">-</span>';
+      const crown = s.score>=item.count ? '👑' : '';
+      return `<div>${s.score}/${item.count}${crown}</div><div class="text-[10px] text-gray-400">${s.wpm}wpm</div>`;
+    };
+
+    row.innerHTML = `
+      <div class="col-span-1 pl-4 text-slate-500 font-bold font-mono self-center">${gradeDisplay}</div>
+      <div class="col-span-3 font-bold text-slate-700 truncate self-center">${item.section}</div>
+      <div class="col-span-8 grid grid-cols-3 gap-2 text-center">
+        <div>${fmt(item.normal)}</div>
+        <div>${fmt(item.hard)}</div>
+        <div>${fmt(item.extra)}</div>
+      </div>
+    `;
+    container.appendChild(row);
+  });
+}
+
+/* =========================================================
+   Game Execution: unique questions, early clear, resume progress
+========================================================= */
+let gameInterval = null;
+let gameTargets = [];
+let order = [];     // indices into gameTargets
+let gameIndex = 0;  // how many solved (position in order)
+let correctChars = 0;
+
+let totalSeconds = 0;
+let timeLeftSec = 0;
+let isTransitioning = false;
+
+function getProgressKey(){
+  return keyForMode(currentSettings.grade, currentSettings.section, currentSettings.mode);
+}
+
+function setProgress(){
+  const k = getProgressKey();
+  progressData[k] = {
+    order,
+    idx: gameIndex,
+    correctChars
+  };
+  saveAll();
+}
+
+function clearProgress(){
+  const k = getProgressKey();
+  delete progressData[k];
+  saveAll();
+}
+
+function getTargets(){
+  return allWords.filter(w=>w.grade===currentSettings.grade && w.section.includes(currentSettings.section));
+}
+
+window.startGame = function(){
+  stopBgm();
+  // allow audio on first gesture (for iOS etc.)
+  ensureAudioCtx();
+
+  const targets = getTargets();
+  if(targets.length===0) return alert("No data");
+
+  gameTargets = targets;
+
+  const k = getProgressKey();
+  const saved = progressData[k];
+
+  if(saved && Array.isArray(saved.order) && typeof saved.idx === 'number'){
+    // resume
+    order = saved.order;
+    gameIndex = saved.idx;
+    correctChars = saved.correctChars || 0;
+  }else{
+    // new order (unique, no repeats)
+    order = [...Array(gameTargets.length).keys()];
+    // shuffle
+    for(let i=order.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [order[i],order[j]] = [order[j],order[i]];
+    }
+    gameIndex = 0;
+    correctChars = 0;
+    setProgress();
+  }
+
+  document.getElementById('game-score').textContent = String(gameIndex);
+  document.getElementById('game-mode-badge').textContent = currentSettings.mode.toUpperCase();
+  document.getElementById('game-wpm-badge').textContent = 'WPM: 0';
+  gameEnded = false;
+
+  document.getElementById('game-input').value = "";
+  document.getElementById('game-input').disabled = false;
+
+  goToScreen('game');
+  setQuestion();
+  startTimer(currentSettings.timeLimitMin * 60);
+};
+
+function currentQuestion(){
+  if(gameIndex >= order.length) return null;
+  return gameTargets[order[gameIndex]];
+}
+
+function setQuestion(){
+  const input = document.getElementById('game-input');
+  input.value = "";
+  input.focus();
+  isTransitioning = false;
+
+  // clear if already finished
+  if(gameIndex >= order.length){
+    endGame(true);
+    return;
+  }
+
+  const q = currentQuestion();
+  const nextQ = (gameIndex+1 < order.length) ? gameTargets[order[gameIndex+1]] : null;
+
+  // POS
+  const posEl = document.getElementById('pos-display');
+  if(q.pos && q.pos !== 'nan'){
+    posEl.textContent = `[${q.pos}]`;
+    posEl.classList.remove('hidden');
+  }else{
+    posEl.classList.add('hidden');
+  }
+
+  document.getElementById('meaning-display').textContent = q.ja;
+
+  const nextHint = document.getElementById('next-hint');
+  if(currentSettings.mode==='normal' && nextQ){
+    nextHint.classList.remove('opacity-0');
+    document.getElementById('next-word-text').textContent = nextQ.en;
+  }else{
+    nextHint.classList.add('opacity-0');
+  }
+
+  const display = document.getElementById('word-display');
+  display.innerHTML = '';
+
+  const cursor = document.createElement('span');
+  cursor.className = 'cursor-bar';
+  cursor.id = 'visual-cursor';
+  display.appendChild(cursor);
+
+  q.en.split('').forEach(char=>{
+    const span = document.createElement('span');
+    span.textContent = char;
+    if(char===' ') span.style.width='0.6em';
+
+    if(currentSettings.mode==='normal'){
+      span.className='char-base char-default';
+    }else{
+      if(char===' ') span.className='char-base char-default';
+      else span.className='char-base char-hidden mx-0.5';
+    }
+    display.appendChild(span);
+  });
+
+  speak(q.en);
+}
+
+document.getElementById('replay-voice-btn').onclick = ()=>{
+  const q = currentQuestion();
+  if(q) speak(q.en);
+  document.getElementById('game-input').focus();
+};
+
+function startTimer(seconds){
+  if(gameInterval) clearInterval(gameInterval);
+  totalSeconds = seconds;
+  timeLeftSec = seconds;
+
+  const timerEl = document.getElementById('game-timer');
+
+  const render = ()=>{
+    const m = Math.floor(timeLeftSec/60);
+    const s = timeLeftSec%60;
+    timerEl.textContent = `${m}:${String(s).padStart(2,'0')}`;
+  };
+  render();
+
+  gameInterval = setInterval(()=>{
+    if(gameEnded) return;
+    timeLeftSec--;
+    render();
+
+    if(timeLeftSec<=10) timerEl.classList.add('text-red-500');
+    else timerEl.classList.remove('text-red-500');
+
+    // live WPM
+    document.getElementById('game-wpm-badge').textContent = `WPM: ${calcWPM()}`;
+
+    if(timeLeftSec<=0) endGame(false);
+  },1000);
+}
+
+function calcWPM(){
+  // 5文字=1語 / 実測時間
+  const elapsedSeconds = Math.max(1, totalSeconds - timeLeftSec);
+  return Math.round((correctChars/5)/(elapsedSeconds/60));
+}
+
+const inputEl = document.getElementById('game-input');
+
+inputEl.addEventListener('keydown', (e)=>{
+  // type sound for most keys
+  if(e.key.length===1 || e.key==='Backspace' || e.key==='Enter'){
+    if(!isTransitioning) sfxType();
+  }
+});
+
+inputEl.addEventListener('input', ()=>{
+  if(isTransitioning || !currentQuestion()){
+    inputEl.value="";
+    return;
+  }
+
+  const val = inputEl.value;
+  const target = currentQuestion().en;
+  const spans = document.querySelectorAll('#word-display .char-base');
+  const cursor = document.getElementById('visual-cursor');
+  const display = document.getElementById('word-display');
+
+  spans.forEach((span,i)=>{
+    const char = val[i];
+    if(char==null){
+      if(currentSettings.mode!=='normal' && target[i] !== ' ') span.className='char-base char-hidden mx-0.5';
+      else span.className='char-base char-default';
+    }else if(char.toLowerCase() === target[i].toLowerCase()){
+      span.className='char-base char-correct mx-0';
+    }else{
+      if(currentSettings.mode!=='normal' && target[i] !== ' ') span.className='char-base char-hidden char-wrong mx-0.5';
+      else span.className='char-base char-wrong';
+    }
+  });
+
+  if(val.length < spans.length) display.insertBefore(cursor, spans[val.length]);
+  else display.appendChild(cursor);
+
+  if(val.toLowerCase() === target.toLowerCase()){
+    isTransitioning = true;
+    sfxCoin();
+
+    correctChars += target.length + 1;
+    display.classList.add('anim-pop');
+
+    setTimeout(()=>{
+      display.classList.remove('anim-pop');
+      gameIndex++;
+      document.getElementById('game-score').textContent = String(gameIndex);
+      setProgress();
+
+      // early clear
+      if(gameIndex >= order.length){
+        endGame(true);
+      }else{
+        setQuestion();
+      }
+    },150);
+  }
+});
+
+document.getElementById('screen-game').addEventListener('click', ()=>inputEl.focus());
+
+function isFullClearNow(grade, section){
+  const targetsCount = getTargets().length;
+  const st = statsData[keyFor(grade, section)];
+  if(!st || targetsCount<=0) return false;
+  return st.normal.score>=targetsCount && st.hard.score>=targetsCount && st.extra.score>=targetsCount;
+}
+
+function endGame(cleared=false){
+  if(gameEnded) return;
+  gameEnded = true;
+  if(gameInterval) clearInterval(gameInterval);
+  document.getElementById('game-input').disabled = true;
+
+  const wpm = calcWPM();
+  document.getElementById('res-score').textContent = String(gameIndex);
+  document.getElementById('res-wpm').textContent = String(wpm);
+
+  // history always
+  addHistory(currentSettings.grade, currentSettings.section, currentSettings.mode, gameIndex, wpm);
+
+  // save stats max
+  saveStats(currentSettings.grade, currentSettings.section, currentSettings.mode, gameIndex, wpm);
+
+  // result card reset
+  const resultCard = document.getElementById('result-card');
+  resultCard.classList.remove('full-clear-glow');
+  document.getElementById('result-topbar').className = "absolute top-0 left-0 w-full h-3 bg-gradient-to-r from-sky-400 to-indigo-400";
+
+  const targetsCount = getTargets().length;
+
+  if(cleared){
+    // cleared whole section early or just in time
+    clearProgress();
+
+    const full = isFullClearNow(currentSettings.grade, currentSettings.section);
+
+    if(full){
+      fireConfetti({durationMs:2300, count:220, burst:3});
+      sfxFullClear();
+      document.getElementById('result-msg').textContent = "FULL CLEAR!!";
+      resultCard.classList.add('full-clear-glow');
+      document.getElementById('result-topbar').className = "absolute top-0 left-0 w-full h-3 bg-gradient-to-r from-yellow-400 via-amber-400 to-rose-400";
+    }else{
+      fireConfetti({durationMs:1400, count:120, burst:2});
+      sfxLevelUp();
+      document.getElementById('result-msg').textContent = "Section Clear!";
+    }
+  }else{
+    // time up -> keep progress
+    document.getElementById('result-msg').textContent = "Time Up! Continue next time.";
+    setProgress();
+  }
+
+  goToScreen('result');
+}
+
+/* =========================================================
+   init
+========================================================= */
+function init(){
+  loadAll();
+  initBgm();
+  // default
+  document.getElementById('sfx-toggle').checked = true;
+  currentSettings.sfxOn = true;
+  currentSettings.timeLimitMin = parseInt(document.getElementById('time-slider').value,10);
+
+  // if data exists, enable
+  if(allWords.length>0){
+    document.getElementById('total-words-count').textContent = allWords.length;
+  }
+  goToScreen('grade');
+}
+
+window.onload = init;
+</script>
+
+</body>
+</html>
