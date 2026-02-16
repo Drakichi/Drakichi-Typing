@@ -222,7 +222,7 @@
               </label>
 
               <!-- ここ：枠に収まるように高さと文字サイズを調整 -->
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <button onclick="selectMode('normal')" id="btn-mode-normal"
                         class="mode-btn p-4 rounded-xl border-2 border-sky-500 bg-sky-50 text-sky-700 font-bold text-center transition ring-2 ring-sky-500 ring-offset-2 hover:shadow-md">
                   <div class="text-lg sm:text-xl mb-1 whitespace-nowrap"><i class="fas fa-eye"></i> Normal</div>
@@ -239,6 +239,12 @@
                         class="mode-btn p-4 rounded-xl border-2 border-rose-500 hover:bg-rose-50 text-gray-600 hover:text-rose-600 font-bold text-center transition hover:shadow-md">
                   <div class="text-lg sm:text-xl mb-1 whitespace-nowrap"><i class="fas fa-skull"></i> Ex-Hard</div>
                   <div class="text-[10px] font-normal opacity-80 whitespace-nowrap">意味のみ・音声なし</div>
+                </button>
+
+                <button onclick="selectMode('reading')" id="btn-mode-reading"
+                        class="mode-btn p-4 rounded-xl border-2 border-emerald-500 hover:bg-emerald-50 text-gray-600 hover:text-emerald-700 font-bold text-center transition hover:shadow-md">
+                  <div class="text-lg sm:text-xl mb-1 whitespace-nowrap"><i class="fas fa-microphone"></i> Reading</div>
+                  <div class="text-[10px] font-normal opacity-80 whitespace-nowrap">音読評価（許容あり）</div>
                 </button>
               </div>
             </div>
@@ -271,7 +277,7 @@
                 </label>
 
                 <div class="text-xs text-slate-400">
-                  ※英語音声は常にON（Extraは仕様上OFF）
+                  ※英語音声は常にON（ExtraはOFF）。Readingはマイク権限が必要です。
                 </div>
               </div>
             </div>
@@ -306,6 +312,10 @@
             <span id="game-wpm-badge"
                   class="px-4 py-1 bg-white border border-slate-200 text-slate-600 rounded-full text-xs font-bold shadow-sm whitespace-nowrap">
               WPM: 0
+            </span>
+            <span id="game-pron-badge"
+                  class="hidden px-4 py-1 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-full text-xs font-bold shadow-sm whitespace-nowrap">
+              Pron: -
             </span>
           </div>
 
@@ -342,6 +352,15 @@
             <span class="text-[10px] uppercase bg-sky-50 px-2 py-0.5 rounded text-sky-300">Next</span>
             <span id="next-word-text" class="text-slate-400 font-normal">...</span>
           </div>
+
+          <div id="reading-panel" class="hidden mt-4 bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-left max-w-3xl mx-auto">
+            <div class="flex items-center justify-between gap-3 mb-2">
+              <div class="text-xs font-bold text-emerald-700 uppercase tracking-widest">Reading Feedback</div>
+              <button id="reading-retry-btn" class="text-xs px-3 py-1 rounded-full bg-white border border-emerald-200 text-emerald-700 font-bold hover:bg-emerald-100 transition">もう一度判定</button>
+            </div>
+            <div id="reading-transcript" class="text-sm text-slate-600">マイク入力待機中...</div>
+            <div id="reading-eval" class="text-xs text-emerald-700 mt-1 font-bold"></div>
+          </div>
         </div>
 
         <input type="text" id="game-input" class="absolute inset-0 w-full h-full opacity-0 cursor-text z-10" autocomplete="off">
@@ -358,7 +377,7 @@
           <h2 id="result-title" class="text-6xl font-bold text-slate-800 mb-2 mt-4">FINISH!</h2>
           <p id="result-msg" class="text-sky-600 font-bold mb-10 text-xl">Good Job!</p>
 
-          <div class="grid grid-cols-2 gap-6 w-full mb-12">
+          <div id="result-grid" class="grid grid-cols-2 gap-6 w-full mb-12">
             <div class="bg-sky-50 p-6 rounded-3xl text-center border border-sky-100">
               <div class="text-xs text-sky-400 uppercase font-bold mb-2 tracking-widest">Solved</div>
               <div id="res-score" class="text-6xl font-mono font-bold text-sky-600">0</div>
@@ -367,6 +386,11 @@
               <div class="text-xs text-slate-400 uppercase font-bold mb-2 tracking-widest">WPM</div>
               <div id="res-wpm" class="text-6xl font-mono font-bold text-slate-600">0</div>
               <div id="res-wpm-note" class="text-xs text-slate-400 mt-2">（5文字=1語 / 実測時間）</div>
+            </div>
+            <div id="res-pron-card" class="hidden bg-emerald-50 p-6 rounded-3xl text-center border border-emerald-200">
+              <div class="text-xs text-emerald-500 uppercase font-bold mb-2 tracking-widest">Pronunciation</div>
+              <div id="res-pron" class="text-6xl font-mono font-bold text-emerald-600">0%</div>
+              <div id="res-pron-note" class="text-xs text-emerald-700 mt-2">許容誤差ありで評価</div>
             </div>
           </div>
 
@@ -455,10 +479,11 @@
           <div class="p-4 bg-slate-50 border-b border-slate-200 grid grid-cols-12 gap-2 text-xs font-bold text-slate-400 uppercase tracking-wider text-center">
             <div class="col-span-1 text-left pl-4">Grade</div>
             <div class="col-span-3 text-left">Section</div>
-            <div class="col-span-8 grid grid-cols-3 gap-2">
+            <div class="col-span-8 grid grid-cols-4 gap-2">
               <div>Normal</div>
               <div>Hard</div>
               <div>Ex-Hard</div>
+              <div>Reading</div>
             </div>
           </div>
 
@@ -497,6 +522,9 @@ let currentSettings = {
   timeLimitMin: 1,
   sfxOn: true
 };
+
+let readingRecognition = null;
+let lastPronScore = 0;
 
 const screens = ['grade','section','settings','game','result','stats'];
 const backBtn = document.getElementById('back-btn');
@@ -642,6 +670,7 @@ function stopConfetti(){
 }
 
 function goToScreen(screenName){
+  stopReadingRecognition();
   stopConfetti();
 
   screens.forEach(s=>document.getElementById(`screen-${s}`).classList.add('hidden'));
@@ -722,7 +751,7 @@ function renderSectionList(grade){
     const total = targets.length;
 
     const key = keyFor(grade, sec);
-    const stat = statsData[key] || {normal:{score:0,wpm:0},hard:{score:0,wpm:0},extra:{score:0,wpm:0}};
+    const stat = statsData[key] || {normal:{score:0,wpm:0},hard:{score:0,wpm:0},extra:{score:0,wpm:0},reading:{score:0,wpm:0}};
 
     const isFullClear = total>0 &&
       stat.normal.score>=total &&
@@ -762,6 +791,7 @@ function renderSectionList(grade){
           ${getLine('Norm', stat.normal, total)}
           ${getLine('Hard', stat.hard, total)}
           ${getLine('Extra', stat.extra, total)}
+          ${getLine('Read', stat.reading || {score:0,wpm:0}, total)}
         </div>
       </div>
     `;
@@ -778,7 +808,7 @@ window.selectMode = function(m){
     btn.className = "mode-btn p-4 rounded-xl border-2 border-slate-200 text-slate-500 font-bold text-center transition hover:shadow-md bg-white";
   });
   const active = document.getElementById(`btn-mode-${m}`);
-  const colors = {normal:'sky', hard:'orange', extra:'rose'};
+  const colors = {normal:'sky', hard:'orange', extra:'rose', reading:'emerald'};
   const c = colors[m];
   active.className = `mode-btn p-4 rounded-xl border-2 border-${c}-500 bg-${c}-50 text-${c}-700 font-bold text-center transition ring-2 ring-${c}-500 ring-offset-2 hover:shadow-md transform scale-[1.03]`;
   updateResumeHint();
@@ -984,8 +1014,7 @@ function sfxType(){
   try{
     playTypeMp3();
   }catch(e){
-    ensureAudio();
-    tone(1800,0.02,'square',0.04);
+    beep(1800,0.02,'square',0.04);
   }
 }
 
@@ -1131,6 +1160,7 @@ function saveStats(grade, section, mode, score, wpm){
       normal:{score:0,wpm:0},
       hard:{score:0,wpm:0},
       extra:{score:0,wpm:0},
+      reading:{score:0,wpm:0},
       date:""
     };
   }
@@ -1242,9 +1272,9 @@ function renderWpmChartAllModes(grade, section, limit=50, showMA=true, maWin=5){
     return;
   }
 
-  const modes = ["normal","hard","extra"];
-  const labels = {normal:"Normal", hard:"Hard", extra:"Ex-Hard"};
-  const colors = {normal:"#0ea5e9", hard:"#f97316", extra:"#ec4899"};
+  const modes = ["normal","hard","extra","reading"];
+  const labels = {normal:"Normal", hard:"Hard", extra:"Ex-Hard", reading:"Reading"};
+  const colors = {normal:"#0ea5e9", hard:"#f97316", extra:"#ec4899", reading:"#10b981"};
 
   const series = {};
   const allVals = [];
@@ -1361,7 +1391,7 @@ function renderWpmChartAllModes(grade, section, limit=50, showMA=true, maWin=5){
     if(!d || d.length===0) return `${labels[m]}: -`;
     return `${labels[m]}: ${d[d.length-1].wpm}wpm`;
   };
-  if(note) note.textContent = `直近表示: 最大${limit}回｜${lastStr("normal")} / ${lastStr("hard")} / ${lastStr("extra")}`;
+  if(note) note.textContent = `直近表示: 最大${limit}回｜${lastStr("normal")} / ${lastStr("hard")} / ${lastStr("extra")} / ${lastStr("reading")}`;
 
   renderWpmSummary(grade, section);
 }
@@ -1466,10 +1496,11 @@ function renderStatsList(){
     row.innerHTML = `
       <div class="col-span-1 pl-4 text-slate-500 font-bold font-mono self-center">${gradeDisplay}</div>
       <div class="col-span-3 font-bold text-slate-700 truncate self-center">${item.section}</div>
-      <div class="col-span-8 grid grid-cols-3 gap-2 text-center">
+      <div class="col-span-8 grid grid-cols-4 gap-2 text-center">
         <div>${fmt(item.normal)}</div>
         <div>${fmt(item.hard)}</div>
         <div>${fmt(item.extra)}</div>
+        <div>${fmt(item.reading || {score:0,wpm:0})}</div>
       </div>
     `;
     container.appendChild(row);
@@ -1488,6 +1519,7 @@ let correctChars = 0;
 let totalSeconds = 0;
 let timeLeftSec = 0;
 let isTransitioning = false;
+let gameEnded = false;
 
 function getProgressKey(){
   return keyForMode(currentSettings.grade, currentSettings.section, currentSettings.mode);
@@ -1513,9 +1545,134 @@ function getTargets(){
   return allWords.filter(w=>w.grade===currentSettings.grade && w.section.includes(currentSettings.section));
 }
 
+function normalizeReadingText(t){
+  return (t || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s']/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function levenshtein(a,b){
+  const m=a.length,n=b.length;
+  const dp=Array.from({length:m+1},()=>Array(n+1).fill(0));
+  for(let i=0;i<=m;i++) dp[i][0]=i;
+  for(let j=0;j<=n;j++) dp[0][j]=j;
+  for(let i=1;i<=m;i++){
+    for(let j=1;j<=n;j++){
+      const cost=a[i-1]===b[j-1]?0:1;
+      dp[i][j]=Math.min(dp[i-1][j]+1, dp[i][j-1]+1, dp[i-1][j-1]+cost);
+    }
+  }
+  return dp[m][n];
+}
+
+function evaluateReading(targetText, spokenText){
+  const targetWords = normalizeReadingText(targetText).split(' ').filter(Boolean);
+  const spokenWords = normalizeReadingText(spokenText).split(' ').filter(Boolean);
+  const maxLen = Math.max(targetWords.length, spokenWords.length, 1);
+  const wordDistance = levenshtein(targetWords, spokenWords);
+  const accuracy = Math.max(0, 1 - (wordDistance / maxLen));
+
+  const weakWords = [];
+  targetWords.forEach((w,idx)=>{
+    const sw = spokenWords[idx] || '';
+    const d = levenshtein(w, sw);
+    const sim = Math.max(0, 1 - (d / Math.max(w.length, sw.length, 1)));
+    if(sim < 0.6) weakWords.push(w);
+  });
+
+  const score = Math.round(accuracy * 100);
+  return { score, weakWords, transcript: normalizeReadingText(spokenText) };
+}
+
+function stopReadingRecognition(){
+  if(readingRecognition){
+    try{ readingRecognition.onend = null; readingRecognition.stop(); }catch(e){}
+    readingRecognition = null;
+  }
+}
+
+function updateReadingPanel(text, evalText=''){
+  const transcriptEl = document.getElementById('reading-transcript');
+  const evalEl = document.getElementById('reading-eval');
+  transcriptEl.textContent = text;
+  evalEl.textContent = evalText;
+}
+
+function solveCurrentQuestion(target){
+  if(isTransitioning) return;
+  isTransitioning = true;
+  sfxCoin();
+  correctChars += target.length + 1;
+
+  const display = document.getElementById('word-display');
+  display.classList.add('anim-pop');
+  setTimeout(()=>{
+    display.classList.remove('anim-pop');
+    gameIndex++;
+    document.getElementById('game-score').textContent = String(gameIndex);
+    setProgress();
+    if(gameIndex >= order.length) endGame(true);
+    else setQuestion();
+  },150);
+}
+
+function startReadingAttempt(targetText){
+  stopReadingRecognition();
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SpeechRecognition){
+    updateReadingPanel('このブラウザは音声認識に未対応です。通常入力で回答してください。', '');
+    document.getElementById('game-input').disabled = false;
+    return;
+  }
+
+  const rec = new SpeechRecognition();
+  readingRecognition = rec;
+  rec.lang = 'en-US';
+  rec.interimResults = true;
+  rec.maxAlternatives = 1;
+  rec.continuous = false;
+
+  let transcript = '';
+  updateReadingPanel('聞き取り中... 英文を読んでください。', '');
+
+  rec.onresult = (event)=>{
+    let interim = '';
+    for(let i=event.resultIndex; i<event.results.length; i++){
+      const chunk = event.results[i][0].transcript;
+      if(event.results[i].isFinal) transcript += ` ${chunk}`;
+      else interim += ` ${chunk}`;
+    }
+    const shown = normalizeReadingText(`${transcript} ${interim}`).trim();
+    updateReadingPanel(shown || '聞き取り中...', '');
+  };
+
+  rec.onerror = ()=> updateReadingPanel('音声認識エラー。もう一度判定を押してください。', '');
+
+  rec.onend = ()=>{
+    const spoken = transcript.trim();
+    if(!spoken){
+      updateReadingPanel('音声を検出できませんでした。もう一度判定を押してください。', '');
+      return;
+    }
+
+    const evalResult = evaluateReading(targetText, spoken);
+    lastPronScore = evalResult.score;
+    document.getElementById('game-pron-badge').textContent = `Pron: ${evalResult.score}%`;
+
+    const weakText = evalResult.weakWords.length ? `苦手語: ${evalResult.weakWords.slice(0,4).join(', ')}` : '良い発音です！';
+    updateReadingPanel(evalResult.transcript, `評価 ${evalResult.score}% / ${weakText}`);
+
+    if(evalResult.score >= 75) solveCurrentQuestion(targetText);
+  };
+
+  try{ rec.start(); }
+  catch(e){ updateReadingPanel('マイク起動に失敗しました。', ''); }
+}
+
 window.startGame = function(){
   stopBgm();
-  // allow audio on first gesture (for iOS etc.)
   ensureAudioCtx();
 
   const targets = getTargets();
@@ -1527,14 +1684,11 @@ window.startGame = function(){
   const saved = progressData[k];
 
   if(saved && Array.isArray(saved.order) && typeof saved.idx === 'number'){
-    // resume
     order = saved.order;
     gameIndex = saved.idx;
     correctChars = saved.correctChars || 0;
   }else{
-    // new order (unique, no repeats)
     order = [...Array(gameTargets.length).keys()];
-    // shuffle
     for(let i=order.length-1;i>0;i--){
       const j = Math.floor(Math.random()*(i+1));
       [order[i],order[j]] = [order[j],order[i]];
@@ -1547,10 +1701,13 @@ window.startGame = function(){
   document.getElementById('game-score').textContent = String(gameIndex);
   document.getElementById('game-mode-badge').textContent = currentSettings.mode.toUpperCase();
   document.getElementById('game-wpm-badge').textContent = 'WPM: 0';
+  document.getElementById('game-pron-badge').classList.toggle('hidden', currentSettings.mode!=='reading');
+  document.getElementById('reading-panel').classList.toggle('hidden', currentSettings.mode!=='reading');
   gameEnded = false;
 
-  document.getElementById('game-input').value = "";
-  document.getElementById('game-input').disabled = false;
+  const input = document.getElementById('game-input');
+  input.value = "";
+  input.disabled = (currentSettings.mode==='reading');
 
   goToScreen('game');
   setQuestion();
@@ -1565,10 +1722,10 @@ function currentQuestion(){
 function setQuestion(){
   const input = document.getElementById('game-input');
   input.value = "";
-  input.focus();
+  input.disabled = (currentSettings.mode==='reading');
+  if(currentSettings.mode!=='reading') input.focus();
   isTransitioning = false;
 
-  // clear if already finished
   if(gameIndex >= order.length){
     endGame(true);
     return;
@@ -1577,7 +1734,6 @@ function setQuestion(){
   const q = currentQuestion();
   const nextQ = (gameIndex+1 < order.length) ? gameTargets[order[gameIndex+1]] : null;
 
-  // POS
   const posEl = document.getElementById('pos-display');
   if(q.pos && q.pos !== 'nan'){
     posEl.textContent = `[${q.pos}]`;
@@ -1602,14 +1758,14 @@ function setQuestion(){
   const cursor = document.createElement('span');
   cursor.className = 'cursor-bar';
   cursor.id = 'visual-cursor';
-  display.appendChild(cursor);
+  if(currentSettings.mode!=='reading') display.appendChild(cursor);
 
   q.en.split('').forEach(char=>{
     const span = document.createElement('span');
     span.textContent = char;
     if(char===' ') span.style.width='0.6em';
 
-    if(currentSettings.mode==='normal'){
+    if(currentSettings.mode==='normal' || currentSettings.mode==='reading'){
       span.className='char-base char-default';
     }else{
       if(char===' ') span.className='char-base char-default';
@@ -1619,12 +1775,20 @@ function setQuestion(){
   });
 
   speak(q.en);
+  if(currentSettings.mode==='reading') startReadingAttempt(q.en);
 }
 
 document.getElementById('replay-voice-btn').onclick = ()=>{
   const q = currentQuestion();
   if(q) speak(q.en);
-  document.getElementById('game-input').focus();
+  if(currentSettings.mode==='reading' && q) startReadingAttempt(q.en);
+  else document.getElementById('game-input').focus();
+};
+
+document.getElementById('reading-retry-btn').onclick = ()=>{
+  const q = currentQuestion();
+  if(currentSettings.mode!=='reading' || !q) return;
+  startReadingAttempt(q.en);
 };
 
 function startTimer(seconds){
@@ -1650,7 +1814,7 @@ function startTimer(seconds){
     else timerEl.classList.remove('text-red-500');
 
     // live WPM
-    document.getElementById('game-wpm-badge').textContent = `WPM: ${calcWPM()}`;
+    if(currentSettings.mode!=='reading') document.getElementById('game-wpm-badge').textContent = `WPM: ${calcWPM()}`;
 
     if(timeLeftSec<=0) endGame(false);
   },1000);
@@ -1672,6 +1836,11 @@ inputEl.addEventListener('keydown', (e)=>{
 });
 
 inputEl.addEventListener('input', ()=>{
+  if(currentSettings.mode==='reading'){
+    inputEl.value='';
+    return;
+  }
+
   if(isTransitioning || !currentQuestion()){
     inputEl.value="";
     return;
@@ -1700,25 +1869,7 @@ inputEl.addEventListener('input', ()=>{
   else display.appendChild(cursor);
 
   if(val.toLowerCase() === target.toLowerCase()){
-    isTransitioning = true;
-    sfxCoin();
-
-    correctChars += target.length + 1;
-    display.classList.add('anim-pop');
-
-    setTimeout(()=>{
-      display.classList.remove('anim-pop');
-      gameIndex++;
-      document.getElementById('game-score').textContent = String(gameIndex);
-      setProgress();
-
-      // early clear
-      if(gameIndex >= order.length){
-        endGame(true);
-      }else{
-        setQuestion();
-      }
-    },150);
+    solveCurrentQuestion(target);
   }
 });
 
@@ -1736,10 +1887,16 @@ function endGame(cleared=false){
   gameEnded = true;
   if(gameInterval) clearInterval(gameInterval);
   document.getElementById('game-input').disabled = true;
+  stopReadingRecognition();
 
   const wpm = calcWPM();
   document.getElementById('res-score').textContent = String(gameIndex);
   document.getElementById('res-wpm').textContent = String(wpm);
+  document.getElementById('res-pron').textContent = `${lastPronScore}%`;
+  document.getElementById('res-pron-card').classList.toggle('hidden', currentSettings.mode!=='reading');
+  document.getElementById('result-grid').className = currentSettings.mode==='reading'
+    ? 'grid grid-cols-1 md:grid-cols-3 gap-6 w-full mb-12'
+    : 'grid grid-cols-2 gap-6 w-full mb-12';
 
   // history always
   addHistory(currentSettings.grade, currentSettings.section, currentSettings.mode, gameIndex, wpm);
